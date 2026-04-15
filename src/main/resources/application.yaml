@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: dbdemo
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dbdemo
+    username: dbdemo
+    password: dbdemo
+  sql:
+    init:
+      mode: always
