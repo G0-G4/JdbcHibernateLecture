@@ -2,14 +2,11 @@ package ru.hh.dbdemo.hibernate;
 
 import ru.hh.dbdemo.dto.AuthorDetailsDto;
 import ru.hh.dbdemo.dto.AuthorSummaryDto;
-import ru.hh.dbdemo.dto.BookDetailsDto;
 import ru.hh.dbdemo.dto.CreateBookRequest;
 import ru.hh.dbdemo.dto.PageDto;
-import ru.hh.dbdemo.dto.ReviewDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityNotFoundException;
-import org.hibernate.LazyInitializationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,7 +23,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/library")
-@Tag(name = "Hibernate", description = "Endpoints with common Hibernate pitfalls")
+@Tag(name = "Hibernate", description = "Hibernate endpoints with JOIN FETCH improvements")
 public class LibraryController {
 
   private final LibraryService service;
@@ -36,13 +33,13 @@ public class LibraryController {
   }
 
   @GetMapping("/authors")
-  @Operation(summary = "List authors", description = "Contains N+1 query problem by design")
+  @Operation(summary = "List authors", description = "Uses JOIN FETCH to avoid N+1 queries")
   public List<AuthorSummaryDto> getAuthors() {
     return service.findAuthorsWithBookCounts();
   }
 
   @GetMapping("/authors/paged")
-  @Operation(summary = "List authors page", description = "Naive JOIN FETCH + Pageable pitfall")
+  @Operation(summary = "List authors page", description = "Uses two-step pagination with JOIN FETCH")
   public PageDto<AuthorSummaryDto> getAuthorsPaged(
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size
@@ -51,25 +48,9 @@ public class LibraryController {
   }
 
   @GetMapping("/authors/{authorId}")
-  @Operation(summary = "Get author details", description = "Triggers LazyInitializationException by design")
+  @Operation(summary = "Get author details", description = "Loads graph in transaction with JOIN FETCH")
   public AuthorDetailsDto getAuthor(@PathVariable long authorId) {
-    Author author = service.findAuthorEntity(authorId);
-    List<BookDetailsDto> books = author.getBooks().stream()
-        .map(book -> new BookDetailsDto(
-            book.getId(),
-            book.getTitle(),
-            book.getPublishedYear(),
-            book.getReviews().stream()
-                .map(review -> new ReviewDto(
-                    review.getId(),
-                    review.getReviewer(),
-                    review.getRating(),
-                    review.getComment()
-                ))
-                .toList()
-        ))
-        .toList();
-    return new AuthorDetailsDto(author.getId(), author.getName(), books);
+    return service.findAuthorDetails(authorId);
   }
 
   @PostMapping("/books")
@@ -84,11 +65,5 @@ public class LibraryController {
   @ExceptionHandler(EntityNotFoundException.class)
   public ResponseEntity<String> handleNotFound(EntityNotFoundException ex) {
     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
-  }
-
-  @ExceptionHandler(LazyInitializationException.class)
-  public ResponseEntity<String> handleLazyInit(LazyInitializationException ex) {
-    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .body("LazyInitializationException demo triggered: " + ex.getMessage());
   }
 }

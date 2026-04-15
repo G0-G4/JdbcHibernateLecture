@@ -13,7 +13,7 @@ public class OpenApiConfig {
     return new OpenAPI()
         .info(new Info()
             .title("JDBC to Hibernate Demo")
-            .description("Commit 2: Hibernate rewrite with intentional lazy, N+1, and pagination pitfalls")
-            .version("v2"));
+            .description("Commit 3: JOIN FETCH fixes for lazy loading, N+1, and pagination")
+            .version("v3"));
   }
 }
